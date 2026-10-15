@@ -1,5 +1,5 @@
-// start.ng owns sign-in. The game asks it who is signed in through a hidden
-// start.ng/connect page, and gets back { id, name, style } or null.
+// start.ng owns sign-in and scores. The game talks to it through a hidden start.ng/connect
+// page: who is signed in ({ id, name, style } or null), save a score, read the leaderboard.
 // The game never sees the start.ng token or email.
 
 // Where start.ng lives, worked out from where this game is served.
@@ -27,9 +27,10 @@ function connectFrame() {
   return frame;
 }
 
-// Resolves to the user, null (signed out), or undefined if start.ng didn't answer.
-async function check() {
-  if (!START_NG) return null;
+// Sends a message to start.ng/connect and resolves to its reply, or undefined if start.ng
+// isn't there or didn't answer in time.
+async function ask(message, replyType, timeoutMs = 3000) {
+  if (!START_NG) return undefined;
   let el;
   try {
     el = await connectFrame();
@@ -38,19 +39,26 @@ async function check() {
   }
   return new Promise((resolve) => {
     const requestId = Math.random().toString(36).slice(2);
-    const done = (user) => {
+    const done = (reply) => {
       clearTimeout(timer);
       removeEventListener('message', onMessage);
-      resolve(user);
+      resolve(reply);
     };
-    const timer = setTimeout(() => done(undefined), 3000);
+    const timer = setTimeout(() => done(undefined), timeoutMs);
     function onMessage(e) {
       if (e.origin !== START_NG || e.source !== el.contentWindow) return;
-      if (e.data?.type === 'startng:user' && e.data.requestId === requestId) done(e.data.user ?? null);
+      if (e.data?.type === replyType && e.data.requestId === requestId) done(e.data);
     }
     addEventListener('message', onMessage);
-    el.contentWindow.postMessage({ type: 'startng:whoami', requestId }, START_NG);
+    el.contentWindow.postMessage({ ...message, requestId }, START_NG);
   });
+}
+
+// Resolves to the user, null (signed out), or undefined if start.ng didn't answer.
+async function check() {
+  if (!START_NG) return null;
+  const reply = await ask({ type: 'startng:whoami' }, 'startng:user');
+  return reply && (reply.user ?? null);
 }
 
 /** The signed-in start.ng user ({ id, name, style }), or null. */
@@ -70,6 +78,21 @@ export function onUserChange(fn) {
   };
   document.addEventListener('visibilitychange', recheck);
   addEventListener('focus', recheck);
+}
+
+/**
+ * Saves the signed-in player's score on start.ng (only their best per game is kept).
+ * Resolves to { best, improved, rank }, or null if it couldn't be saved.
+ */
+export async function submitScore(score) {
+  const reply = await ask({ type: 'startng:score', score }, 'startng:scoreSaved', 8000);
+  return reply?.ok ? reply.result : null;
+}
+
+/** This game's top players on start.ng: [{ rank, player_id, name, color, score }], or null. */
+export async function getLeaderboard(limit = 10) {
+  const reply = await ask({ type: 'startng:leaderboard', limit }, 'startng:leaderboardData', 8000);
+  return reply?.ok ? reply.entries : null;
 }
 
 /** Sends the player to start.ng to sign in. start.ng brings them back here afterwards. */

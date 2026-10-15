@@ -90,3 +90,6 @@ body { background: var(--bg); }
 .user > div { min-width: 0; }
 .name { overflow: hidden; text-overflow: ellipsis; }
 .stats { flex: none; }
+.board-title { margin: 18px 0 0 !important; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; text-align: left; }
+.board-title + .board { margin-top: 6px; }
+.board li.me { background: rgba(255, 209, 102, 0.14); border-radius: 6px; padding-left: 6px; padding-right: 6px; font-weight: 600; }

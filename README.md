@@ -13,6 +13,15 @@ A small three.js endless runner built for the start.ng platform. You run down th
 3. **Sign in with start.ng** sends the player to `start.ng/?return_to=<game URL>`. After signing in, start.ng sends them back, and the game picks them up.
 4. When the player comes back to the game tab, it checks again, so signing in or out on start.ng shows up in the game.
 
+**Leaderboard:** signed-in players' scores are saved on start.ng (each player's best per game), and everyone sees Lane Dash's shared top 10 with their own row highlighted. Guests see the board but aren't on it. This goes through the same connect page:
+
+```js
+{ type: "startng:score", score }        // -> { type: "startng:scoreSaved", ok, result: { best, improved, rank } }
+{ type: "startng:leaderboard", limit }  // -> { type: "startng:leaderboardData", ok, entries: [{ rank, player_id, name, color, score }] }
+```
+
+start.ng works out which game a score belongs to from the game's address, so a game can only save its own scores. Away from start.ng (e.g. GitHub Pages), the board shows this browser's own best scores.
+
 This needs the `game-connect` change in `startng-fe` (`src/games.ts`). No back-end or database changes.
 
 The style comes from the player's character in start.ng's character creator. Accounts without a character get a starting look worked out from their id:

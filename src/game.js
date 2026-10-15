@@ -18,7 +18,7 @@ const ui = {
   avatar: $('avatar'), username: $('username'), hudLink: $('hudLink'),
   score: $('score'), coins: $('coins'), best: $('best'),
   overlay: $('overlay'), title: $('title'), message: $('message'),
-  action: $('action'), secondary: $('secondary'), board: $('board'),
+  action: $('action'), secondary: $('secondary'), board: $('board'), boardTitle: $('boardTitle'),
 };
 
 const GUEST = { id: 'guest', name: 'Guest', guest: true };
@@ -175,13 +175,34 @@ function crash() {
   overAt = time;
   shake = 0.35;
   const score = currentScore();
-  const { best, isBest } = scores.submit(user, score);
-  ui.best.textContent = best;
-  showOverlay({
-    title: isBest ? 'New best!' : 'Ouch!',
-    message: `${user.name}, you scored ${score} with ${coins} coins.`,
-    button: ['Run again', start],
-    board: true,
+  const local = scores.submit(user, score); // this browser's best, for the HUD
+  ui.best.textContent = local.best;
+  const scored = `${user.name}, you scored ${score} with ${coins} coins.`;
+
+  if (!platform.START_NG || user.guest) {
+    showOverlay({
+      title: local.isBest ? 'New best!' : 'Ouch!',
+      message: platform.START_NG ? `${scored} Sign in to get on the leaderboard.` : scored,
+      button: ['Run again', start],
+      secondary: platform.START_NG ? ['Sign in with start.ng', platform.signIn] : null,
+      board: true,
+    });
+    return;
+  }
+
+  // Signed in on start.ng: save the score there, then show the shared leaderboard.
+  const run = overAt;
+  const saving = platform.submitScore(score);
+  showOverlay({ title: 'Ouch!', message: `${scored} Saving…`, button: ['Run again', start], board: true, saving });
+  saving.then((result) => {
+    if (state !== 'over' || overAt !== run) return; // already playing again
+    if (!result) {
+      ui.message.textContent = `${scored} Couldn't save your score this time.`;
+      return;
+    }
+    if (result.improved) ui.title.textContent = 'New best!';
+    ui.best.textContent = result.best;
+    ui.message.textContent = `${scored} You're #${result.rank} on the leaderboard.`;
   });
 }
 
@@ -199,13 +220,15 @@ function moveLane(dir) {
 
 // --- Overlay / HUD -----------------------------------------------------------
 
-function leaderboardRow(entry, i) {
+// entry: { rank, name, color, score, player_id? }
+function leaderboardRow(entry) {
   const li = document.createElement('li');
+  if (user && !user.guest && entry.player_id === user.id) li.className = 'me';
   const dot = document.createElement('span');
   dot.className = 'dot';
-  dot.style.background = entry.color;
+  dot.style.background = entry.color ?? '#9aa3b5';
   const name = document.createElement('span');
-  name.textContent = `${i + 1}. ${entry.name}`;
+  name.textContent = `${entry.rank}. ${entry.name}`;
   const score = document.createElement('span');
   score.className = 'score';
   score.textContent = entry.score;
@@ -213,11 +236,35 @@ function leaderboardRow(entry, i) {
   return li;
 }
 
+function setBoard(title, entries = []) {
+  ui.boardTitle.textContent = title;
+  ui.boardTitle.hidden = !title;
+  ui.board.replaceChildren(...entries.map(leaderboardRow));
+}
+
+// On start.ng the board is the game's shared start.ng leaderboard; anywhere else it's this
+// browser's own scores. `saving` is a score being saved, to wait for before loading.
+let boardRequest = 0;
+async function loadBoard(saving) {
+  const request = ++boardRequest;
+  if (!platform.START_NG) {
+    setBoard('Best on this device', scores.top(5).map((e, i) => ({ ...e, rank: i + 1 })));
+    return;
+  }
+  setBoard('Leaderboard: loading…');
+  await saving;
+  const entries = await platform.getLeaderboard(10);
+  if (request !== boardRequest) return; // the overlay has moved on
+  if (!entries) setBoard("Couldn't load the leaderboard");
+  else if (!entries.length) setBoard('Leaderboard: no scores yet. Be the first!');
+  else setBoard('start.ng leaderboard', entries);
+}
+
 // What the overlay's two buttons do right now.
 const actions = { primary: null, secondary: null };
 
 // button / secondary are [label, onClick]; leave one out to hide it.
-function showOverlay({ title, message, button, secondary, board = false }) {
+function showOverlay({ title, message, button, secondary, board = false, saving = null }) {
   ui.title.textContent = title;
   ui.message.textContent = message;
   for (const [el, key, spec] of [[ui.action, 'primary', button], [ui.secondary, 'secondary', secondary]]) {
@@ -225,7 +272,11 @@ function showOverlay({ title, message, button, secondary, board = false }) {
     if (spec) el.textContent = spec[0];
     actions[key] = spec?.[1] ?? null;
   }
-  ui.board.replaceChildren(...(board ? scores.top(5).map(leaderboardRow) : []));
+  if (board) loadBoard(saving);
+  else {
+    boardRequest++;
+    setBoard('');
+  }
   ui.overlay.hidden = false;
 }
 

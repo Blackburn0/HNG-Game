@@ -18,7 +18,7 @@
       <span class="avatar" id="avatar">?</span>
       <div>
         <div class="name" id="username">Loading…</div>
-        <a class="link" href="startng.html" target="startng">Edit style on start.ng ↗</a>
+        <a class="link" id="hudLink" href="#" hidden>Sign in with start.ng</a>
       </div>
     </div>
     <div class="stats">
@@ -32,7 +32,10 @@
     <div class="panel">
       <h1 id="title">Lane Dash</h1>
       <p id="message"></p>
-      <button class="btn" id="action">Play</button>
+      <div class="buttons">
+        <button class="btn" id="action" hidden>Play</button>
+        <button class="btn ghost" id="secondary" hidden></button>
+      </div>
       <ol class="board" id="board"></ol>
       <p class="hint">← → or A D to switch lanes · ↑, W or Space to jump · swipe or tap on mobile</p>
     </div>

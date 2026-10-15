@@ -15,10 +15,13 @@ const LOOP = 110; // length of the scenery loop
 
 const $ = (id) => document.getElementById(id);
 const ui = {
-  avatar: $('avatar'), username: $('username'),
+  avatar: $('avatar'), username: $('username'), hudLink: $('hudLink'),
   score: $('score'), coins: $('coins'), best: $('best'),
-  overlay: $('overlay'), title: $('title'), message: $('message'), action: $('action'), board: $('board'),
+  overlay: $('overlay'), title: $('title'), message: $('message'),
+  action: $('action'), secondary: $('secondary'), board: $('board'),
 };
+
+const GUEST = { id: 'guest', name: 'Guest', guest: true };
 
 // --- Scene -----------------------------------------------------------------
 
@@ -176,10 +179,14 @@ function crash() {
   ui.best.textContent = best;
   showOverlay({
     title: isBest ? 'New best!' : 'Ouch!',
-    message: `${user.displayName}, you scored ${score} with ${coins} coins.`,
-    button: 'Run again',
+    message: `${user.name}, you scored ${score} with ${coins} coins.`,
+    button: ['Run again', start],
     board: true,
   });
+}
+
+function playAsGuest() {
+  refreshUser(GUEST);
 }
 
 function jump() {
@@ -206,44 +213,66 @@ function leaderboardRow(entry, i) {
   return li;
 }
 
-function showOverlay({ title, message, button, board = false }) {
+// What the overlay's two buttons do right now.
+const actions = { primary: null, secondary: null };
+
+// button / secondary are [label, onClick]; leave one out to hide it.
+function showOverlay({ title, message, button, secondary, board = false }) {
   ui.title.textContent = title;
   ui.message.textContent = message;
-  ui.action.textContent = button;
+  for (const [el, key, spec] of [[ui.action, 'primary', button], [ui.secondary, 'secondary', secondary]]) {
+    el.hidden = !spec;
+    if (spec) el.textContent = spec[0];
+    actions[key] = spec?.[1] ?? null;
+  }
   ui.board.replaceChildren(...(board ? scores.top(5).map(leaderboardRow) : []));
   ui.overlay.hidden = false;
 }
 
 function showIdle() {
+  const signIn = platform.START_NG ? ['Sign in with start.ng', platform.signIn] : null;
   if (!user) {
     showOverlay({
       title: 'Lane Dash',
-      message: 'Sign in with your start.ng account to play. Your runner wears your start.ng style.',
-      button: 'Sign in on start.ng',
+      message: signIn
+        ? 'Sign in with start.ng to play as yourself, with your own look. Or jump in as a guest.'
+        : "start.ng sign-in isn't available here, so you'll play as a guest.",
+      button: signIn ?? ['Play as guest', playAsGuest],
+      secondary: signIn && ['Play as guest', playAsGuest],
+    });
+  } else if (user.guest) {
+    showOverlay({
+      title: 'Lane Dash',
+      message: 'Playing as a guest. Sign in with start.ng to get your own look and put your name on the scores.',
+      button: ['Play', start],
+      secondary: signIn,
+      board: true,
     });
   } else {
     showOverlay({
       title: 'Lane Dash',
-      message: `Hi ${user.displayName}! Your runner is dressed in your start.ng style. Change it there and watch it update here.`,
-      button: 'Play',
+      message: `Hi ${user.name}! Your runner wears your start.ng look.`,
+      button: ['Play', start],
       board: true,
     });
   }
 }
 
-function primaryAction() {
-  if (!user) window.open('startng.html', 'startng');
-  else if (state !== 'running' && time - overAt > 0.5) start();
+function overlayAction(key) {
+  if (state === 'running' || time - overAt < 0.5) return; // don't restart by accident right after a crash
+  actions[key]?.();
 }
 
 function refreshUser(u) {
+  if (!u && user?.guest) u = user; // still signed out on start.ng: a guest carries on as a guest
   const switched = (u?.id ?? null) !== (user?.id ?? null);
   user = u;
-  hero.applyStyle(u?.style); // default look when signed out
-  ui.avatar.style.background = u?.style.primaryColor ?? '#555';
-  ui.avatar.textContent = u ? u.displayName[0].toUpperCase() : '?';
-  ui.username.textContent = u ? u.displayName : 'Not signed in';
+  hero.applyStyle(u?.style); // default look for guests and signed-out players
+  ui.avatar.style.background = u?.style?.primaryColor ?? '#555';
+  ui.avatar.textContent = u ? u.name[0].toUpperCase() : '?';
+  ui.username.textContent = u ? u.name : 'Not signed in';
   ui.best.textContent = u ? scores.getBest(u.id) : 0;
+  ui.hudLink.hidden = !platform.START_NG || (u && !u.guest);
   if (switched) {
     reset();
     state = 'ready';
@@ -256,7 +285,7 @@ function refreshUser(u) {
 addEventListener('keydown', (e) => {
   if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'Space'].includes(e.code)) e.preventDefault();
   if (state !== 'running') {
-    if (e.code === 'Space' || e.code === 'Enter') primaryAction();
+    if (e.code === 'Space' || e.code === 'Enter') overlayAction('primary');
     return;
   }
   if (e.code === 'ArrowLeft' || e.code === 'KeyA') moveLane(-1);
@@ -264,7 +293,12 @@ addEventListener('keydown', (e) => {
   if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Space') jump();
 });
 
-ui.action.addEventListener('click', primaryAction);
+ui.action.addEventListener('click', () => overlayAction('primary'));
+ui.secondary.addEventListener('click', () => overlayAction('secondary'));
+ui.hudLink.addEventListener('click', (e) => {
+  e.preventDefault();
+  platform.signIn();
+});
 
 let touch = null;
 canvas.addEventListener('touchstart', (e) => {
@@ -362,12 +396,13 @@ resize();
 // --- Boot -------------------------------------------------------------------
 
 reset();
-platform.onUserChange(refreshUser);
-refreshUser(await platform.getCurrentUser());
-showIdle();
-
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   step(Math.min(clock.getDelta(), 0.05));
   renderer.render(scene, camera);
 });
+
+if (platform.START_NG) showOverlay({ title: 'Lane Dash', message: 'Checking your start.ng sign-in…' });
+refreshUser(await platform.getCurrentUser());
+showIdle();
+platform.onUserChange(refreshUser);

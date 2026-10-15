@@ -1,35 +1,21 @@
 # Lane Dash
 
-A small three.js endless runner built for the start.ng platform. You run down three lanes, jump low barriers, dodge tall blocks and grab coins. The runner is dressed in the signed-in user's **central start.ng style** (shirt, pants/hat and skin colours, hat, accessory), and it updates live when that style changes.
+A small three.js endless runner built for the start.ng platform. You run down three lanes, jump low barriers, dodge tall blocks and grab coins.
 
-**Play it:** https://blackburn0.github.io/HNG-Game/
+**start.ng handles sign-in.** If you're signed in on start.ng, the game knows who you are and dresses the runner in your start.ng look. If you aren't, it asks you to sign in on start.ng or play as a guest.
 
-## Run locally
+**Play it:** https://blackburn0.github.io/HNG-Game/ (guest only: start.ng sign-in works when the game is served from `<name>.start.ng`)
 
-```bash
-npm start
-```
+## How start.ng sign-in works
 
-Then open http://localhost:5173. No install step is needed. three.js loads from a CDN.
+1. The game loads `start.ng/connect` in a hidden iframe and asks "who is signed in?" with `postMessage`.
+2. start.ng answers only pages on `*.start.ng` (or `*.start.localhost` when testing), with `{ id, name, style }` or `null`. The game never gets the start.ng token or email.
+3. **Sign in with start.ng** sends the player to `start.ng/?return_to=<game URL>`. After signing in, start.ng sends them back, and the game picks them up.
+4. When the player comes back to the game tab, it checks again, so signing in or out on start.ng shows up in the game.
 
-1. Click **Sign in on start.ng**. This opens `startng.html`, a mock of the platform.
-2. Pick a test user, then click **Play Lane Dash**.
-3. Keep both tabs open. Change colours or the hat on the start.ng tab and watch the runner change in the game.
+This needs the `game-connect` change in `startng-fe` (`src/games.ts`). No back-end or database changes.
 
-Controls: ← → / A D to switch lanes, ↑ / W / Space to jump. On mobile, swipe or tap.
-
-## How start.ng is wired in
-
-| File | Role |
-| --- | --- |
-| `src/platform.js` | The only platform import the game uses. Point it at the real SDK when start.ng ships. |
-| `src/startng-mock.js` | Fake SDK: `getCurrentUser`, `onUserChange`, `signIn`, `signOut`, `updateStyle`. Backed by localStorage. |
-| `startng.html` + `src/startng-page.js` | Mock start.ng site: sign in and edit your central style. |
-| `src/character.js` | Builds the runner and applies a style: `applyStyle({ primaryColor, secondaryColor, skinColor, hat, accessory })`. |
-| `src/game.js` | The game. |
-| `src/scores.js` | Per-user best scores and the leaderboard (stored in this browser). |
-
-The style shape the game expects:
+The style the game expects (start.ng works it out from the account id until it stores real styles):
 
 ```js
 { primaryColor: '#ff6b6b', secondaryColor: '#2b2f4a', skinColor: '#8d5524', hat: 'cap', accessory: 'backpack' }
@@ -37,4 +23,25 @@ The style shape the game expects:
 // accessory: none | glasses | scarf | backpack
 ```
 
-When the real start.ng API is ready, map its user/profile fields onto this shape in `src/platform.js`.
+## Files
+
+| File | Role |
+| --- | --- |
+| `src/platform.js` | Talks to start.ng: `getCurrentUser`, `onUserChange`, `signIn`. |
+| `src/character.js` | Builds the runner and applies a style. |
+| `src/game.js` | The game. |
+| `src/scores.js` | Best scores and the leaderboard (stored in this browser). |
+
+## Run locally
+
+Sign-in only works when start.ng and the game share a parent domain, as `start.ng` and `lanedash.start.ng` will. Locally that means start.ng at `http://start.localhost:5173` and the game served by the start.ng game Worker at `http://lanedash.start.localhost:8787`.
+
+To try the game on its own (guest only):
+
+```bash
+npm start
+```
+
+Then open http://localhost:5173.
+
+Controls: ← → / A D to switch lanes, ↑ / W / Space to jump. On mobile, swipe or tap.

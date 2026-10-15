@@ -1,4 +1,4 @@
-// Per-user best scores for Lane Dash, kept in this browser.
+// Per-player best scores for Lane Dash, kept in this browser.
 const KEY = 'lanedash:scores';
 
 function all() {
@@ -9,15 +9,15 @@ function all() {
   }
 }
 
-export function getBest(userId) {
-  return all()[userId]?.score ?? 0;
+export function getBest(playerId) {
+  return all()[playerId]?.score ?? 0;
 }
 
-export function submit(user, score) {
+export function submit(player, score) {
   const scores = all();
-  const prev = scores[user.id]?.score ?? 0;
+  const prev = scores[player.id]?.score ?? 0;
   const isBest = score > prev;
-  scores[user.id] = { score: Math.max(prev, score), name: user.displayName, color: user.style.primaryColor };
+  scores[player.id] = { score: Math.max(prev, score), name: player.name, color: player.style?.primaryColor ?? '#9aa3b5' };
   localStorage.setItem(KEY, JSON.stringify(scores));
   return { best: Math.max(prev, score), isBest };
 }

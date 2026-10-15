@@ -15,13 +15,22 @@ A small three.js endless runner built for the start.ng platform. You run down th
 
 This needs the `game-connect` change in `startng-fe` (`src/games.ts`). No back-end or database changes.
 
-The style the game expects (start.ng works it out from the account id until it stores real styles):
+The style comes from the player's character in start.ng's character creator. Accounts without a character get a starting look worked out from their id:
 
 ```js
-{ primaryColor: '#ff6b6b', secondaryColor: '#2b2f4a', skinColor: '#8d5524', hat: 'cap', accessory: 'backpack' }
-// hat: none | cap | beanie | tophat | crown
-// accessory: none | glasses | scarf | backpack
+{
+  body: 'female',            // female | male
+  primaryColor: '#a55eea',   // top
+  secondaryColor: '#0c6e5a', // bottoms
+  skinColor: '#8d5524',
+  hairColor: '#17120f',
+  hair: 'braids',            // short | afro | braids | bun | ponytail | dreads | bald
+  hat: 'none',               // none | cap | beanie | tophat | crown
+  accessory: 'earrings',     // none | glasses | earrings | beard | scarf | backpack
+}
 ```
+
+Missing or unknown values fall back to defaults, so new options on start.ng won't break the game.
 
 ## Files
 

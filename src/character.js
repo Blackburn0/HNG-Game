@@ -1,15 +1,22 @@
 import * as THREE from 'three';
 
-// Everything a start.ng style can change on the character.
+// Everything a start.ng style can change on the character (see startng-fe src/character.ts).
 export const HATS = ['none', 'cap', 'beanie', 'tophat', 'crown'];
-export const ACCESSORIES = ['none', 'glasses', 'scarf', 'backpack'];
+export const HAIRS = ['short', 'afro', 'braids', 'bun', 'ponytail', 'dreads', 'bald'];
+export const ACCESSORIES = ['none', 'glasses', 'earrings', 'beard', 'scarf', 'backpack'];
 export const DEFAULT_STYLE = {
+  body: 'male',
   primaryColor: '#9aa3b5',
   secondaryColor: '#4a4f60',
   skinColor: '#d9a066',
+  hairColor: '#2b1d14',
+  hair: 'short',
   hat: 'none',
   accessory: 'none',
 };
+
+// How high a hat sits above the top of the head, so it rests on the hair.
+const HAT_LIFT = { short: 0.08, afro: 0.3, braids: 0.08, bun: 0.08, ponytail: 0.08, dreads: 0.08, bald: 0 };
 
 const BLACK = new THREE.MeshStandardMaterial({ color: '#1b1b22', roughness: 0.5 });
 const GOLD = new THREE.MeshStandardMaterial({ color: '#ffcf4d', metalness: 0.6, roughness: 0.3 });
@@ -48,6 +55,7 @@ export function createCharacter(style) {
     primary: new THREE.MeshStandardMaterial({ roughness: 0.6 }),
     secondary: new THREE.MeshStandardMaterial({ roughness: 0.7 }),
     skin: new THREE.MeshStandardMaterial({ roughness: 0.8 }),
+    hair: new THREE.MeshStandardMaterial({ roughness: 0.9 }),
   };
 
   const root = new THREE.Group();
@@ -64,7 +72,9 @@ export function createCharacter(style) {
   };
   const legL = limb(-0.18, 0.8, mats.secondary, 0.8, 0.28);
   const legR = limb(0.18, 0.8, mats.secondary, 0.8, 0.28);
-  body.add(box(0.75, 0.85, 0.45, mats.primary, 0, 1.225, 0));
+  const torso = box(0.75, 0.85, 0.45, mats.primary, 0, 1.225, 0);
+  const skirt = box(0.82, 0.32, 0.52, mats.secondary, 0, 0.74, 0); // shown for the female body
+  body.add(torso, skirt);
   const armL = limb(-0.5, 1.6, mats.primary, 0.7, 0.22);
   const armR = limb(0.5, 1.6, mats.primary, 0.7, 0.22);
   armL.add(box(0.2, 0.18, 0.2, mats.skin, 0, -0.78, 0));
@@ -77,8 +87,10 @@ export function createCharacter(style) {
   head.add(box(0.1, 0.12, 0.02, BLACK, -0.13, 0.05, -0.31));
   head.add(box(0.1, 0.12, 0.02, BLACK, 0.13, 0.05, -0.31));
 
+  const hairSlot = new THREE.Group();
+  head.add(hairSlot);
   const hatSlot = new THREE.Group();
-  hatSlot.position.y = 0.3; // top of the head
+  hatSlot.position.y = 0.3; // top of the head, raised by HAT_LIFT for the hair
   head.add(hatSlot);
   const accessorySlot = new THREE.Group();
   body.add(accessorySlot);
@@ -107,8 +119,45 @@ export function createCharacter(style) {
     ],
   };
 
+  // Head coordinates: the head is a 0.6 cube at the origin, the face is at -z and the back at +z.
+  const hairTop = () => [
+    box(0.64, 0.12, 0.64, mats.hair, 0, 0.34, 0),
+    box(0.64, 0.42, 0.08, mats.hair, 0, 0.1, 0.31),
+  ];
+  const hairs = {
+    bald: () => [],
+    short: () => [box(0.64, 0.12, 0.64, mats.hair, 0, 0.34, 0), box(0.64, 0.3, 0.08, mats.hair, 0, 0.17, 0.31)],
+    afro: () => {
+      const afro = mesh(new THREE.SphereGeometry(0.42, 14, 10), mats.hair, 0, 0.24, 0.06);
+      afro.scale.y = 0.9;
+      return [afro];
+    },
+    braids: () => [
+      ...hairTop(),
+      ...[-0.24, -0.12, 0, 0.12, 0.24].map((x) => box(0.08, 0.75, 0.08, mats.hair, x, -0.2, 0.35)),
+    ],
+    bun: () => [...hairTop(), mesh(new THREE.SphereGeometry(0.17, 12, 8), mats.hair, 0, 0.45, 0.16)],
+    ponytail: () => {
+      const tail = box(0.14, 0.55, 0.14, mats.hair, 0, -0.05, 0.42);
+      tail.rotation.x = -0.35;
+      return [...hairTop(), tail, box(0.17, 0.08, 0.17, mats.primary, 0, 0.2, 0.36)];
+    },
+    dreads: () => [
+      ...hairTop(),
+      ...Array.from({ length: 9 }, (_, i) => {
+        const a = -2 + i * 0.5; // around the sides and back, not the face
+        return mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.65, 6), mats.hair, Math.sin(a) * 0.33, -0.1, Math.cos(a) * 0.33);
+      }),
+    ],
+  };
+
   const accessories = {
     none: () => [],
+    earrings: () => [
+      mesh(new THREE.SphereGeometry(0.05, 8, 6), GOLD, -0.32, 1.84, 0),
+      mesh(new THREE.SphereGeometry(0.05, 8, 6), GOLD, 0.32, 1.84, 0),
+    ],
+    beard: () => [box(0.52, 0.22, 0.08, mats.hair, 0, 1.76, -0.31)],
     glasses: () => [
       box(0.2, 0.14, 0.04, BLACK, -0.14, 2.0, -0.32),
       box(0.2, 0.14, 0.04, BLACK, 0.14, 2.0, -0.32),
@@ -124,6 +173,7 @@ export function createCharacter(style) {
     ],
   };
 
+  let hair = null;
   let hat = null;
   let accessory = null;
 
@@ -132,7 +182,19 @@ export function createCharacter(style) {
     mats.primary.color.set(s.primaryColor);
     mats.secondary.color.set(s.secondaryColor);
     mats.skin.color.set(s.skinColor);
-    // Hats and accessories share the materials above, so only rebuild on a shape change.
+    mats.hair.color.set(s.hairColor);
+
+    const female = s.body === 'female';
+    torso.scale.x = female ? 0.88 : 1;
+    skirt.visible = female;
+
+    // Hair, hats and accessories share the materials above, so only rebuild on a shape change.
+    if (s.hair !== hair) {
+      clear(hairSlot);
+      fill(hairSlot, (hairs[s.hair] ?? hairs.short)());
+      hatSlot.position.y = 0.3 + (HAT_LIFT[s.hair] ?? HAT_LIFT.short);
+      hair = s.hair;
+    }
     if (s.hat !== hat) {
       clear(hatSlot);
       fill(hatSlot, (hats[s.hat] ?? hats.none)());

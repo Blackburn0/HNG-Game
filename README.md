@@ -2,6 +2,8 @@
 
 A small three.js endless runner built for the start.ng platform. You run down three lanes, jump low barriers, dodge tall blocks and grab coins. The runner is dressed in the signed-in user's **central start.ng style** (shirt, pants/hat and skin colours, hat, accessory), and it updates live when that style changes.
 
+**Play it:** https://blackburn0.github.io/HNG-Game/
+
 ## Run locally
 
 ```bash

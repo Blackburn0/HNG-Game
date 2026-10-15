@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import * as platform from './platform.js';
 import * as scores from './scores.js';
 import { createCharacter } from './character.js';
+import * as music from './music.js';
 
 const LANES = [-2.2, 0, 2.2];
 const START_SPEED = 14;
@@ -17,8 +18,13 @@ const $ = (id) => document.getElementById(id);
 const ui = {
   avatar: $('avatar'), username: $('username'), hudLink: $('hudLink'),
   score: $('score'), coins: $('coins'), best: $('best'),
-  overlay: $('overlay'), title: $('title'), message: $('message'),
-  action: $('action'), secondary: $('secondary'), board: $('board'), boardTitle: $('boardTitle'),
+  overlay: $('overlay'), title: $('title'), message: $('message'), howto: $('howto'),
+  buttons: $('buttons'), board: $('board'), boardTitle: $('boardTitle'),
+  splash: $('splash'), countdown: $('countdown'), pauseBtn: $('pauseBtn'), musicBtn: $('musicBtn'),
+  songs: $('songs'), chips: $('chips'), searchForm: $('searchForm'), searchInput: $('searchInput'),
+  resultsNote: $('resultsNote'), results: $('results'),
+  musicCard: $('musicCard'), nowTitle: $('nowTitle'), nowArtist: $('nowArtist'),
+  prevBtn: $('prevBtn'), nextBtn: $('nextBtn'), musicOff: $('musicOff'),
 };
 
 const GUEST = { id: 'guest', name: 'Guest', guest: true };
@@ -137,11 +143,22 @@ function spawnRow() {
 const hero = createCharacter();
 scene.add(hero.root);
 
+const ATTRACT_SPEED = 9; // the road keeps scrolling behind the menus
+const HOWTO_KEY = 'lanedash:seenHowto';
+
 let user = null;
-let state = 'ready'; // ready | running | over
+let userKnown = false; // the start.ng sign-in check has answered
+let state = 'splash'; // splash | ready | countdown | running | paused | over
 let time = 0;
 let overAt = -1;
+let countLeft = 0;
 let speed, distance, coins, lane, vy, untilSpawn, shake;
+
+function setState(s) {
+  state = s;
+  ui.pauseBtn.hidden = s !== 'running' && s !== 'countdown';
+  music.setPaused(s === 'paused');
+}
 
 function reset() {
   while (movers.length) removeMover(0);
@@ -164,14 +181,67 @@ function updateHud() {
   ui.coins.textContent = coins;
 }
 
+// 3, 2, 1, GO! then run. Used for a new run and for coming back from pause.
+function countdown() {
+  setState('countdown');
+  ui.overlay.hidden = true;
+  countLeft = 3;
+  showCount(3);
+}
+
+function showCount(text) {
+  const span = document.createElement('span');
+  span.textContent = text;
+  span.addEventListener('animationend', () => {
+    if (ui.countdown.lastChild === span) ui.countdown.hidden = true;
+  });
+  ui.countdown.classList.toggle('go', typeof text === 'string');
+  ui.countdown.replaceChildren(span);
+  ui.countdown.hidden = false;
+}
+
 function start() {
   reset();
-  state = 'running';
-  ui.overlay.hidden = true;
+  countdown();
+}
+
+// Play from the menu: the first time, show how to play before the run.
+function play() {
+  let seen = false;
+  try {
+    seen = localStorage.getItem(HOWTO_KEY) === '1';
+  } catch {}
+  if (seen) start();
+  else showHowto(true);
+}
+
+function pause() {
+  if (state !== 'running' && state !== 'countdown') return;
+  setState('paused');
+  ui.countdown.hidden = true;
+  showPaused();
+}
+
+function showPaused() {
+  showOverlay({
+    title: 'Paused',
+    message: `Score ${currentScore()} · ${coins} coins`,
+    buttons: [
+      { label: 'Resume', onClick: countdown, big: true },
+      { label: 'Pick a song', onClick: () => showSongs(showPaused) },
+      [{ label: 'Restart', onClick: start }, { label: 'Main menu', onClick: toMenu }],
+    ],
+  });
+}
+
+function toMenu() {
+  reset();
+  setState('ready');
+  showIdle();
 }
 
 function crash() {
-  state = 'over';
+  setState('over');
   overAt = time;
   shake = 0.35;
   updateHud(); // the frame that crashed returns before its own HUD update, so match the final score here
@@ -179,13 +249,14 @@ function crash() {
   const local = scores.submit(user, score); // this browser's best, for the HUD
   ui.best.textContent = local.best;
   const scored = `${user.name}, you scored ${score} with ${coins} coins.`;
+  const again = { label: 'Run again', onClick: start, big: true };
+  const menu = { label: 'Main menu', onClick: toMenu };
 
   if (!platform.START_NG || user.guest) {
     showOverlay({
       title: local.isBest ? 'New best!' : 'Ouch!',
       message: platform.START_NG ? `${scored} Sign in to get on the leaderboard.` : scored,
-      button: ['Run again', start],
-      secondary: platform.START_NG ? ['Sign in with start.ng', platform.signIn] : null,
+      buttons: [again, platform.START_NG ? [{ label: 'Sign in', onClick: platform.signIn }, menu] : menu],
       board: true,
     });
     return;
@@ -194,7 +265,7 @@ function crash() {
   // Signed in on start.ng: save the score there, then show the shared leaderboard.
   const run = overAt;
   const saving = platform.submitScore(score);
-  showOverlay({ title: 'Ouch!', message: `${scored} Saving…`, button: ['Run again', start], board: true, saving });
+  showOverlay({ title: 'Ouch!', message: `${scored} Saving…`, buttons: [again, menu], board: true, saving });
   saving.then((result) => {
     if (state !== 'over' || overAt !== run) return; // already playing again
     if (!result) {
@@ -249,7 +320,8 @@ let boardRequest = 0;
 async function loadBoard(saving) {
   const request = ++boardRequest;
   if (!platform.START_NG) {
-    setBoard('Best on this device', scores.top(5).map((e, i) => ({ ...e, rank: i + 1 })));
+    const entries = scores.top(5).map((e, i) => ({ ...e, rank: i + 1 }));
+    setBoard(entries.length ? 'Best on this device' : 'No scores yet. Go set one!', entries);
     return;
   }
   setBoard('Leaderboard: loading…');
@@ -261,18 +333,33 @@ async function loadBoard(saving) {
   else setBoard('start.ng leaderboard', entries);
 }
 
-// What the overlay's two buttons do right now.
-const actions = { primary: null, secondary: null };
+// What Space / Enter does on the current screen: its first button.
+let primaryAction = null;
 
-// button / secondary are [label, onClick]; leave one out to hide it.
-function showOverlay({ title, message, button, secondary, board = false, saving = null }) {
+function makeButton({ label, onClick, big = false }, primary) {
+  const el = document.createElement('button');
+  el.className = `btn${primary ? '' : ' ghost'}${big ? ' big' : ''}`;
+  el.textContent = label;
+  el.addEventListener('click', () => overlayAction(onClick));
+  return el;
+}
+
+// buttons: a list of { label, onClick, big? }, or an array of them for a row side by side.
+// The first one is the main (yellow) button.
+function showOverlay({ title, message = '', buttons = [], board = false, saving = null, howto = false, songs = false }) {
   ui.title.textContent = title;
   ui.message.textContent = message;
-  for (const [el, key, spec] of [[ui.action, 'primary', button], [ui.secondary, 'secondary', secondary]]) {
-    el.hidden = !spec;
-    if (spec) el.textContent = spec[0];
-    actions[key] = spec?.[1] ?? null;
-  }
+  ui.message.hidden = !message;
+  ui.howto.hidden = !howto;
+  ui.songs.hidden = !songs;
+  primaryAction = buttons[0]?.onClick ?? null;
+  ui.buttons.replaceChildren(...buttons.map((b, i) => {
+    if (!Array.isArray(b)) return makeButton(b, i === 0);
+    const row = document.createElement('div');
+    row.className = 'row';
+    row.append(...b.map((rb) => makeButton(rb, false)));
+    return row;
+  }));
   if (board) loadBoard(saving);
   else {
     boardRequest++;
@@ -281,38 +368,176 @@ function showOverlay({ title, message, button, secondary, board = false, saving 
   ui.overlay.hidden = false;
 }
 
+const navRow = () => [{ label: 'How to play', onClick: () => showHowto(false) }, { label: 'Leaderboard', onClick: showLeaderboard }];
+
 function showIdle() {
-  const signIn = platform.START_NG ? ['Sign in with start.ng', platform.signIn] : null;
+  if (!userKnown) {
+    showOverlay({ title: 'One moment', message: 'Checking your start.ng sign-in…' });
+    return;
+  }
+  const pickSong = { label: 'Pick a song', onClick: () => showSongs(showIdle) };
+  const signIn = platform.START_NG ? { label: 'Sign in with start.ng', onClick: platform.signIn } : null;
+  const best = user ? scores.getBest(user.id) : 0;
+  const bestLine = best ? ` Your best is ${best}.` : '';
   if (!user) {
     showOverlay({
-      title: 'Lane Dash',
+      title: 'Ready to run?',
       message: signIn
         ? 'Sign in with start.ng to play as yourself, with your own look. Or jump in as a guest.'
         : "start.ng sign-in isn't available here, so you'll play as a guest.",
-      button: signIn ?? ['Play as guest', playAsGuest],
-      secondary: signIn && ['Play as guest', playAsGuest],
+      buttons: signIn
+        ? [{ ...signIn, big: true }, { label: 'Play as guest', onClick: playAsGuest }, navRow(), pickSong]
+        : [{ label: 'Play as guest', onClick: playAsGuest, big: true }, navRow(), pickSong],
     });
   } else if (user.guest) {
     showOverlay({
-      title: 'Lane Dash',
-      message: 'Playing as a guest. Sign in with start.ng to get your own look and put your name on the scores.',
-      button: ['Play', start],
-      secondary: signIn,
-      board: true,
+      title: 'Ready, runner?',
+      message: `Playing as a guest.${bestLine}${signIn ? ' Sign in with start.ng to get your own look and put your name on the scores.' : ''}`,
+      buttons: [{ label: 'Play', onClick: play, big: true }, navRow(), signIn ? [pickSong, signIn] : pickSong],
     });
   } else {
     showOverlay({
-      title: 'Lane Dash',
-      message: `Hi ${user.name}! Your runner wears your start.ng look.`,
-      button: ['Play', start],
-      board: true,
+      title: `Hi ${user.name}!`,
+      message: `Your runner wears your start.ng look.${bestLine}`,
+      buttons: [{ label: 'Play', onClick: play, big: true }, navRow(), pickSong],
     });
   }
 }
 
-function overlayAction(key) {
-  if (state === 'running' || time - overAt < 0.5) return; // don't restart by accident right after a crash
-  actions[key]?.();
+// --- Song picker --------------------------------------------------------------
+
+let songQuery = music.ARTISTS[0];
+let songResults = null; // tracks for songQuery, once loaded
+
+// back: the screen to return to (the menu, or the pause screen).
+function showSongs(back) {
+  showOverlay({ title: 'Pick a song', songs: true, buttons: [{ label: 'Done', onClick: back, big: true }] });
+  renderChips();
+  if (songResults) renderResults();
+  else searchSongs(songQuery);
+}
+
+function renderChips() {
+  ui.chips.replaceChildren(...music.ARTISTS.map((artist) => {
+    const el = document.createElement('button');
+    el.type = 'button';
+    el.className = `chip${artist === songQuery ? ' active' : ''}`;
+    el.textContent = artist;
+    el.addEventListener('click', () => {
+      ui.searchInput.value = '';
+      searchSongs(artist);
+    });
+    return el;
+  }));
+}
+
+function searchSongs(query) {
+  songQuery = query;
+  renderChips();
+  songResults = music.search(query);
+  renderResults();
+}
+
+function renderResults() {
+  const playing = music.current();
+  ui.resultsNote.textContent = songResults.length ? '' : `No songs in the list match “${songQuery}”. Try an artist name.`;
+  ui.results.replaceChildren(...songResults.map((track) => {
+    const li = document.createElement('li');
+    if (playing?.id === track.id) li.className = 'playing';
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    const img = document.createElement('img');
+    img.src = track.art;
+    img.alt = '';
+    img.loading = 'lazy';
+    const text = document.createElement('span');
+    text.className = 't';
+    const title = document.createElement('b');
+    title.textContent = track.title;
+    const artist = document.createElement('span');
+    artist.textContent = track.artist;
+    text.append(title, artist);
+    btn.append(img, text);
+    btn.addEventListener('click', () => {
+      if (music.isMuted()) music.setMuted(false); // picking a song means they want to hear it
+      music.play(track, songResults);
+    });
+    li.append(btn);
+    return li;
+  }));
+}
+
+ui.searchForm.addEventListener('submit', (e) => {
+  e.preventDefault();
+  const query = ui.searchInput.value.trim();
+  if (query) searchSongs(query);
+  ui.searchInput.blur(); // closes the phone keyboard so the results show
+});
+
+// The music card in the corner: the YouTube player, with the song name and skip buttons under it.
+function updateNow() {
+  const track = music.current();
+  ui.nowTitle.textContent = music.isLoading() ? 'Loading songs…' : track?.title ?? '';
+  ui.nowTitle.href = track?.link ?? '#';
+  ui.nowArtist.textContent = track?.artist ?? '';
+  ui.prevBtn.disabled = ui.nextBtn.disabled = !track;
+  ui.musicCard.classList.toggle('muted', music.isMuted());
+  updateMusicBtn();
+  if (!ui.songs.hidden && songResults) renderResults(); // move the highlight
+}
+music.onChange(updateNow);
+ui.prevBtn.addEventListener('click', music.prev);
+ui.nextBtn.addEventListener('click', music.next);
+ui.musicOff.addEventListener('click', toggleMusic);
+
+function markHowtoSeen() {
+  try {
+    localStorage.setItem(HOWTO_KEY, '1');
+  } catch {}
+}
+
+function showHowto(firstRun) {
+  showOverlay({
+    title: 'How to play',
+    howto: true,
+    buttons: firstRun
+      ? [{ label: "Let's go!", big: true, onClick: () => { markHowtoSeen(); start(); } }]
+      : [{ label: 'Back', onClick: showIdle, big: true }],
+  });
+}
+
+function showLeaderboard() {
+  showOverlay({ title: 'Leaderboard', buttons: [{ label: 'Back', onClick: showIdle, big: true }], board: true });
+}
+
+function overlayAction(fn) {
+  if (state === 'running' || state === 'countdown') return;
+  if (state === 'over' && time - overAt < 0.5) return; // don't restart by accident right after a crash
+  fn?.();
+}
+
+function leaveSplash() {
+  if (state !== 'splash') return;
+  music.start(); // needs this tap / key press: browsers block sound until one
+  ui.splash.classList.add('leaving');
+  setTimeout(() => (ui.splash.hidden = true), 350);
+  document.body.classList.remove('on-splash');
+  ui.musicCard.hidden = false;
+  setState('ready');
+  showIdle();
+}
+
+function updateMusicBtn() {
+  const muted = music.isMuted();
+  ui.musicBtn.classList.toggle('muted', muted);
+  ui.musicBtn.setAttribute('aria-label', muted ? 'Play music' : 'Mute music');
+  ui.musicBtn.title = `${muted ? 'Play music' : 'Mute music'} (M)`;
+}
+
+function toggleMusic() {
+  music.toggleMuted();
+  music.start();
+  updateMusicBtn();
 }
 
 function refreshUser(u) {
@@ -325,9 +550,9 @@ function refreshUser(u) {
   ui.username.textContent = u ? u.name : 'Not signed in';
   ui.best.textContent = u ? scores.getBest(u.id) : 0;
   ui.hudLink.hidden = !platform.START_NG || (u && !u.guest);
-  if (switched) {
+  if (switched && state !== 'splash') {
     reset();
-    state = 'ready';
+    setState('ready');
     showIdle();
   }
 }
@@ -335,9 +560,23 @@ function refreshUser(u) {
 // --- Input ------------------------------------------------------------------
 
 addEventListener('keydown', (e) => {
-  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'Space'].includes(e.code)) e.preventDefault();
+  if (e.target instanceof HTMLInputElement) return; // typing in the song search
+  if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'Space', 'Enter'].includes(e.code)) e.preventDefault();
+  if (e.repeat) return;
+  if (state === 'splash') {
+    leaveSplash();
+    return;
+  }
+  if (e.code === 'KeyM') return toggleMusic();
+  if (e.code === 'KeyN') return music.next();
+  if (e.code === 'KeyP' || e.code === 'Escape') {
+    if (state === 'paused') overlayAction(primaryAction);
+    else pause();
+    return;
+  }
+  if (state === 'countdown') return;
   if (state !== 'running') {
-    if (e.code === 'Space' || e.code === 'Enter') overlayAction('primary');
+    if (e.code === 'Space' || e.code === 'Enter') overlayAction(primaryAction);
     return;
   }
   if (e.code === 'ArrowLeft' || e.code === 'KeyA') moveLane(-1);
@@ -345,11 +584,25 @@ addEventListener('keydown', (e) => {
   if (e.code === 'ArrowUp' || e.code === 'KeyW' || e.code === 'Space') jump();
 });
 
-ui.action.addEventListener('click', () => overlayAction('primary'));
-ui.secondary.addEventListener('click', () => overlayAction('secondary'));
+ui.splash.addEventListener('pointerdown', leaveSplash);
+ui.pauseBtn.addEventListener('click', (e) => {
+  e.currentTarget.blur(); // so Space jumps instead of pressing the button again
+  pause();
+});
+ui.musicBtn.addEventListener('click', (e) => {
+  e.currentTarget.blur();
+  toggleMusic();
+});
 ui.hudLink.addEventListener('click', (e) => {
   e.preventDefault();
   platform.signIn();
+});
+// Clicking the YouTube player moves keyboard focus into it; take it back so the keys keep steering.
+addEventListener('blur', () => setTimeout(() => {
+  if (document.activeElement instanceof HTMLIFrameElement) document.activeElement.blur();
+}));
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) pause(); // switched tabs or minimised: don't crash while away
 });
 
 let touch = null;
@@ -369,15 +622,36 @@ canvas.addEventListener('touchend', (e) => {
 
 // --- Loop -------------------------------------------------------------------
 
+function scrollScenery(move) {
+  for (const obj of scenery) {
+    obj.position.z += move;
+    if (obj.position.z > DESPAWN_Z) obj.position.z -= LOOP;
+  }
+}
+
 function step(dt) {
+  if (state === 'paused') return; // everything holds still until the player resumes
   time += dt;
   const p = hero.root.position;
+  const attract = state === 'splash' || state === 'ready';
 
   vy -= GRAVITY * dt;
   p.y += vy * dt;
   if (p.y <= 0) {
     p.y = 0;
     vy = 0;
+  }
+
+  if (attract) scrollScenery(ATTRACT_SPEED * dt);
+
+  if (state === 'countdown') {
+    countLeft -= dt;
+    if (countLeft <= 0) {
+      showCount('GO!');
+      setState('running');
+    } else if (String(Math.ceil(countLeft)) !== ui.countdown.textContent) {
+      showCount(Math.ceil(countLeft));
+    }
   }
 
   if (state === 'running') {
@@ -395,10 +669,7 @@ function step(dt) {
     p.x += (targetX - p.x) * Math.min(1, dt * 14);
     hero.root.rotation.z = (p.x - targetX) * 0.12; // lean into lane changes
 
-    for (const obj of scenery) {
-      obj.position.z += move;
-      if (obj.position.z > DESPAWN_Z) obj.position.z -= LOOP;
-    }
+    scrollScenery(move);
 
     for (let i = movers.length - 1; i >= 0; i--) {
       const m = movers[i];
@@ -424,7 +695,7 @@ function step(dt) {
   }
 
   for (const m of movers) if (m.kind === 'coin') m.mesh.rotation.y += dt * 2;
-  hero.animate(time, { running: state === 'running', airborne: p.y > 0, speed });
+  hero.animate(time, { running: state === 'running' || attract, airborne: p.y > 0, speed: attract ? ATTRACT_SPEED : speed });
 
   // Camera follows the runner sideways, with a little shake after a crash.
   shake = Math.max(0, shake - dt);
@@ -448,16 +719,18 @@ resize();
 // --- Boot -------------------------------------------------------------------
 
 reset();
+updateNow();
 const clock = new THREE.Clock();
 renderer.setAnimationLoop(() => {
   step(Math.min(clock.getDelta(), 0.05));
   renderer.render(scene, camera);
 });
 
-if (platform.START_NG) showOverlay({ title: 'Lane Dash', message: 'Checking your start.ng sign-in…' });
+// The splash shows straight away; the sign-in check runs behind it.
 const signedIn = await platform.getCurrentUser();
+userKnown = true;
 // Opened from start.ng with "Play as a guest" (?guest=1): don't ask again, go straight in.
 if (!signedIn && new URLSearchParams(location.search).has('guest')) playAsGuest();
 else refreshUser(signedIn);
-showIdle();
+if (state !== 'splash') showIdle();
 platform.onUserChange(refreshUser);

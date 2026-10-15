@@ -93,3 +93,212 @@ body { background: var(--bg); }
 .board-title { margin: 18px 0 0 !important; font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; text-align: left; }
 .board-title + .board { margin-top: 6px; }
 .board li.me { background: rgba(255, 209, 102, 0.14); border-radius: 6px; padding-left: 6px; padding-right: 6px; font-weight: 600; }
+
+/* --- HUD controls ------------------------------------------------------- */
+
+.hud-right { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; flex: none; }
+.controls { display: flex; gap: 6px; pointer-events: auto; }
+.icon-btn {
+  width: 42px; height: 42px;
+  display: grid; place-items: center;
+  border: 0; border-radius: 50%;
+  background: var(--panel); color: var(--text);
+  cursor: pointer;
+}
+.icon-btn:hover { background: rgba(40, 46, 74, 0.9); }
+.icon-btn svg { width: 22px; height: 22px; fill: currentColor; }
+#musicBtn .off, #musicBtn.muted .on { display: none; }
+#musicBtn.muted .off { display: block; }
+#musicBtn.muted { color: var(--muted); }
+body.on-splash .hud { display: none; }
+
+/* --- Splash ------------------------------------------------------------- */
+
+.splash {
+  position: fixed; inset: 0;
+  display: grid; place-items: center;
+  padding: 16px;
+  text-align: center;
+  cursor: pointer;
+  background:
+    radial-gradient(ellipse at 50% 40%, rgba(15, 18, 32, 0.25), rgba(15, 18, 32, 0.85) 75%),
+    linear-gradient(180deg, rgba(0, 135, 81, 0.35), rgba(15, 18, 32, 0.6));
+  animation: fade-in 0.6s ease-out;
+}
+.splash.leaving { animation: fade-out 0.35s ease-in forwards; pointer-events: none; }
+.kicker { margin: 0 0 6px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.3em; font-size: 13px; }
+.logo {
+  margin: 0;
+  display: flex; flex-direction: column; align-items: center;
+  font-size: clamp(64px, 17vw, 150px);
+  line-height: 0.88;
+  font-weight: 900;
+  font-style: italic;
+  text-transform: uppercase;
+  letter-spacing: -0.02em;
+}
+.logo span { display: block; transform: skewX(-8deg); text-shadow: 0 6px 0 rgba(0, 0, 0, 0.35); animation: drop-in 0.7s cubic-bezier(.2, 1.4, .4, 1) both; }
+.logo span:first-child { color: #fff; }
+.logo span:last-child { color: var(--accent); animation-delay: 0.12s; }
+.tagline { margin: 18px 0 40px; color: var(--text); font-size: clamp(15px, 3.6vw, 19px); opacity: 0.9; }
+.tap {
+  display: inline-block; margin: 0;
+  padding: 12px 26px; border-radius: 999px;
+  border: 2px solid var(--accent); color: var(--accent);
+  font-weight: 700; letter-spacing: 0.08em; text-transform: uppercase; font-size: 14px;
+  animation: pulse 1.6s ease-in-out infinite;
+}
+.sound-note { display: flex; gap: 8px; align-items: center; justify-content: center; margin: 28px auto 0; max-width: 300px; color: var(--muted); font-size: 13px; text-wrap: balance; }
+.sound-note svg { flex: none; }
+.sound-note svg { width: 16px; height: 16px; fill: currentColor; }
+
+@keyframes fade-in { from { opacity: 0; } }
+@keyframes fade-out { to { opacity: 0; transform: scale(1.04); } }
+@keyframes drop-in { from { opacity: 0; transform: translateY(-40px) skewX(-8deg); } }
+@keyframes pulse { 50% { opacity: 0.45; transform: scale(0.97); } }
+
+/* --- Panels ------------------------------------------------------------- */
+
+.overlay { animation: fade-in 0.25s ease-out; }
+.panel { animation: panel-in 0.3s cubic-bezier(.2, 1.2, .4, 1); }
+@keyframes panel-in { from { opacity: 0; transform: translateY(14px) scale(0.98); } }
+.mini-logo { font-weight: 900; font-style: italic; text-transform: uppercase; font-size: 15px; letter-spacing: 0.04em; margin-bottom: 14px; }
+.mini-logo span:last-child { color: var(--accent); margin-left: 5px; }
+.buttons { flex-direction: column; align-items: stretch; }
+.buttons .row { display: flex; gap: 10px; }
+.buttons .row .btn { flex: 1; }
+.btn.big { font-size: 18px; padding: 15px 22px; }
+.btn.ghost:hover { background: rgba(255, 255, 255, 0.06); }
+
+.howto { margin: 0 0 18px; text-align: left; }
+.howto-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.card { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--line); border-radius: 12px; padding: 12px; display: flex; flex-direction: column; gap: 4px; text-align: center; }
+.card span { color: var(--muted); font-size: 12px; }
+.keys { display: flex; gap: 4px; justify-content: center; margin-bottom: 4px; }
+kbd { min-width: 30px; padding: 4px 8px; border-radius: 6px; background: #fff; color: #1d1d1d; font: 700 15px system-ui; box-shadow: 0 3px 0 #9aa3b5; }
+.legend { list-style: none; padding: 0; margin: 14px 0 0; display: grid; gap: 8px; font-size: 14px; }
+.legend li { display: flex; align-items: center; gap: 10px; }
+.swatch { width: 22px; height: 14px; border-radius: 3px; flex: none; }
+.swatch.low { background: #ff9f43; height: 10px; }
+.swatch.tall { background: #e84a5f; width: 16px; height: 22px; }
+.swatch.coin { background: #ffd166; width: 16px; height: 16px; border-radius: 50%; box-shadow: inset 0 0 0 3px #e0a92e; }
+.panel .howto .small { font-size: 12px; margin: 14px 0 0; text-align: center; }
+
+/* --- Countdown ---------------------------------------------------------- */
+
+.countdown {
+  position: fixed; inset: 0;
+  display: grid; place-items: center;
+  pointer-events: none;
+  font-size: clamp(90px, 26vw, 200px);
+  font-weight: 900; font-style: italic;
+  color: #fff;
+  text-shadow: 0 8px 0 rgba(0, 0, 0, 0.3);
+}
+.countdown.go { color: var(--accent); }
+.countdown span { animation: count-pop 0.9s ease-out forwards; }
+@keyframes count-pop {
+  from { opacity: 0; transform: scale(2.2); }
+  25% { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.7); }
+}
+
+/* --- Music ------------------------------------------------------------- */
+
+/* Keep the HUD (and its pause / music buttons) above the menus, so they work while paused. */
+.hud { z-index: 3; }
+
+.songs { margin: 0 0 16px; text-align: left; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip {
+  border: 1px solid var(--line); border-radius: 999px;
+  padding: 6px 12px;
+  background: transparent; color: var(--text);
+  font: inherit; font-size: 13px; cursor: pointer;
+}
+.chip:hover { background: rgba(255, 255, 255, 0.08); }
+.chip.active { background: var(--accent); color: #1d1d1d; border-color: var(--accent); font-weight: 700; }
+.search { display: flex; gap: 6px; margin: 12px 0 0; }
+.search input {
+  flex: 1; min-width: 0;
+  padding: 10px 12px; border-radius: 10px;
+  border: 1px solid var(--line); background: rgba(0, 0, 0, 0.25); color: var(--text);
+  font: inherit; font-size: 16px; /* 16px stops iPhones zooming in */
+}
+.search input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.search .btn { padding: 10px 14px; }
+.panel .songs .small { font-size: 12px; margin: 10px 0 4px; }
+.panel .songs .small:empty { display: none; }
+.results { list-style: none; margin: 0; padding: 0; max-height: clamp(130px, calc(100vh - 500px), 280px); overflow-y: auto; }
+.results li button {
+  width: 100%;
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px; border: 0; border-radius: 8px;
+  background: transparent; color: var(--text);
+  font: inherit; text-align: left; cursor: pointer;
+}
+.results li button:hover { background: rgba(255, 255, 255, 0.06); }
+.results li.playing button { background: rgba(255, 209, 102, 0.14); }
+.results img { width: 36px; height: 36px; border-radius: 6px; flex: none; }
+.results .t { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; }
+.results .t b, .results .t span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.results .t b { font-weight: 600; font-size: 14px; }
+.results .t span { color: var(--muted); font-size: 12px; }
+.panel .credit { font-size: 11px; margin: 8px 0 0; text-align: right; }
+.panel { max-height: calc(100vh - 32px); overflow-y: auto; }
+
+/* On phones the HUD buttons sit where a tall panel would reach, so keep panels below them. */
+@media (max-width: 560px) {
+  .overlay { padding-top: 104px; align-items: start; }
+  .panel { max-height: calc(100vh - 120px); }
+}
+
+/* The music card: YouTube's player, whose rules say it must stay visible (at least 200x200)
+   while it plays, with the song and skip buttons under it. When muted it shrinks to a button. */
+.music-card {
+  position: fixed; left: 16px; bottom: 16px; z-index: 2;
+  width: 240px;
+  border-radius: 14px; overflow: hidden;
+  background: var(--panel); backdrop-filter: blur(6px);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+}
+.player { width: 240px; height: 200px; background: #000; }
+.player iframe { display: block; width: 100%; height: 100%; border: 0; }
+.track { display: flex; align-items: center; gap: 6px; padding: 8px 8px 8px 12px; }
+.track-text { display: flex; flex-direction: column; min-width: 0; flex: 1; line-height: 1.25; }
+.track-text a, .track-text span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.track-text a { color: var(--text); font-weight: 600; font-size: 14px; text-decoration: none; }
+.track-text a:hover { text-decoration: underline; }
+.track-text span { color: var(--muted); font-size: 12px; }
+.icon-btn.small { width: 34px; height: 34px; flex: none; background: rgba(255, 255, 255, 0.08); }
+.icon-btn.small svg { width: 16px; height: 16px; }
+.icon-btn.small:disabled { opacity: 0.4; cursor: default; }
+.music-off {
+  display: none; align-items: center; gap: 8px;
+  width: 100%; padding: 10px 14px; border: 0;
+  background: transparent; color: var(--muted);
+  font: inherit; font-size: 14px; text-align: left; cursor: pointer;
+}
+.music-off b { color: var(--accent); }
+.music-off svg { width: 18px; height: 18px; flex: none; fill: currentColor; }
+.music-off:hover { background: rgba(255, 255, 255, 0.06); }
+.music-card.muted { width: auto; }
+.music-card.muted .player, .music-card.muted .track { display: none; }
+.music-card.muted .music-off { display: flex; }
+
+/* On phones, keep the menus clear of the music card in the corner. */
+@media (max-width: 560px) {
+  body:has(#musicCard:not([hidden]):not(.muted)) .overlay { padding-bottom: 284px; }
+  body:has(#musicCard:not([hidden]):not(.muted)) .panel { max-height: calc(100vh - 388px); }
+  body:has(#musicCard:not([hidden]).muted) .overlay { padding-bottom: 76px; }
+  body:has(#musicCard:not([hidden]).muted) .panel { max-height: calc(100vh - 180px); }
+}
+/* Phones have less room above the music card, so tighten the menus. */
+@media (max-width: 560px) {
+  .panel { padding: 18px 16px; }
+  .mini-logo { display: none; }
+  .panel h1 { font-size: 26px; }
+  .panel p { margin-bottom: 14px; }
+  .btn.big { padding: 13px 22px; }
+  .buttons .btn { padding-top: 10px; padding-bottom: 10px; }
+}

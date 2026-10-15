@@ -10,7 +10,7 @@
     { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
   </script>
 </head>
-<body>
+<body class="on-splash">
   <canvas id="game"></canvas>
 
   <header class="hud">
@@ -21,26 +21,102 @@
         <a class="link" id="hudLink" href="#" hidden>Sign in with start.ng</a>
       </div>
     </div>
-    <div class="stats">
-      <div><span class="label">Score</span><span id="score">0</span></div>
-      <div><span class="label">Coins</span><span id="coins">0</span></div>
-      <div><span class="label">Best</span><span id="best">0</span></div>
+    <div class="hud-right">
+      <div class="stats">
+        <div><span class="label">Score</span><span id="score">0</span></div>
+        <div><span class="label">Coins</span><span id="coins">0</span></div>
+        <div><span class="label">Best</span><span id="best">0</span></div>
+      </div>
+      <div class="controls">
+        <button class="icon-btn" id="pauseBtn" title="Pause (P)" aria-label="Pause" hidden>
+          <svg viewBox="0 0 24 24"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg>
+        </button>
+        <button class="icon-btn" id="musicBtn" title="Music (M)" aria-label="Mute music">
+          <svg viewBox="0 0 24 24" class="on"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 8.5a5 5 0 0 1 0 7M18.5 6a8.5 8.5 0 0 1 0 12" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+          <svg viewBox="0 0 24 24" class="off"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l6 6M22 9l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+        </button>
+      </div>
     </div>
   </header>
 
-  <div class="overlay" id="overlay">
+  <section class="splash" id="splash">
+    <div class="splash-inner">
+      <p class="kicker">start.ng presents</p>
+      <h1 class="logo"><span>Lane</span><span>Dash</span></h1>
+      <p class="tagline">Run. Dodge. Collect. Don't stop moving.</p>
+      <p class="tap" id="tap">Tap anywhere to start</p>
+      <p class="sound-note">
+        <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 0 0-9 9v6a3 3 0 0 0 3 3h2v-8H5v-1a7 7 0 0 1 14 0v1h-3v8h2a3 3 0 0 0 3-3v-6a9 9 0 0 0-9-9z"/></svg>
+        Davido, Wizkid, Adekunle Gold &amp; more · best with sound
+      </p>
+    </div>
+  </section>
+
+  <div class="overlay" id="overlay" hidden>
     <div class="panel">
+      <div class="mini-logo" id="miniLogo"><span>Lane</span><span>Dash</span></div>
       <h1 id="title">Lane Dash</h1>
       <p id="message"></p>
-      <div class="buttons">
-        <button class="btn" id="action" hidden>Play</button>
-        <button class="btn ghost" id="secondary" hidden></button>
+
+      <div class="howto" id="howto" hidden>
+        <div class="howto-grid">
+          <div class="card">
+            <div class="keys"><kbd>←</kbd><kbd>→</kbd></div>
+            <strong>Switch lanes</strong>
+            <span>A / D, or swipe</span>
+          </div>
+          <div class="card">
+            <div class="keys"><kbd>↑</kbd></div>
+            <strong>Jump</strong>
+            <span>W / Space, or tap</span>
+          </div>
+        </div>
+        <ul class="legend">
+          <li><span class="swatch low"></span><span>Orange barrier: <b>jump</b> over it</span></li>
+          <li><span class="swatch tall"></span><span>Red wall: <b>switch lanes</b></span></li>
+          <li><span class="swatch coin"></span><span>Coin: <b>+10</b> points</span></li>
+        </ul>
+        <p class="small">P or Esc to pause · M to mute the music · N for the next song</p>
       </div>
+
+      <div class="songs" id="songs" hidden>
+        <div class="chips" id="chips"></div>
+        <form class="search" id="searchForm">
+          <input id="searchInput" type="search" placeholder="Search the song list" autocomplete="off" aria-label="Search a song or artist">
+          <button class="btn" type="submit">Search</button>
+        </form>
+        <p class="small" id="resultsNote"></p>
+        <ol class="results" id="results"></ol>
+        <p class="credit">Official videos, played on YouTube</p>
+      </div>
+
+      <div class="buttons" id="buttons"></div>
+
       <p class="board-title" id="boardTitle" hidden></p>
       <ol class="board" id="board"></ol>
-      <p class="hint">← → or A D to switch lanes · ↑, W or Space to jump · swipe or tap on mobile</p>
     </div>
   </div>
+
+  <div class="countdown" id="countdown" hidden></div>
+  <aside class="music-card" id="musicCard" hidden>
+    <div class="player" id="player"><div id="playerFrame"></div></div>
+    <div class="track">
+      <div class="track-text">
+        <a id="nowTitle" target="_blank" rel="noopener" title="Open on YouTube"></a>
+        <span id="nowArtist"></span>
+      </div>
+      <button class="icon-btn small" id="prevBtn" title="Previous song" aria-label="Previous song">
+        <svg viewBox="0 0 24 24"><path d="M6 5h2v14H6zM20 5v14L9 12z"/></svg>
+      </button>
+      <button class="icon-btn small" id="nextBtn" title="Next song (N)" aria-label="Next song">
+        <svg viewBox="0 0 24 24"><path d="M16 5h2v14h-2zM4 5v14l11-7z"/></svg>
+      </button>
+    </div>
+    <button class="music-off" id="musicOff">
+      <svg viewBox="0 0 24 24"><path d="M4 9h4l5-4v14l-5-4H4z"/><path d="M16 9l6 6M22 9l-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+      Music is off · <b>Turn on</b>
+    </button>
+  </aside>
 
   <script type="module" src="src/game.js"></script>
 </body>

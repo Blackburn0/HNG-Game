@@ -63,3 +63,7 @@ npm start
 Then open http://localhost:5173.
 
 Controls: ← → / A D to switch lanes, ↑ / W / Space to jump. On mobile, swipe or tap.
+
+## Music
+
+The game plays full afrobeats songs (Davido, Wizkid, Adekunle Gold, Abefe and more) through YouTube's embedded player, from the built-in list of official videos in `src/songs.js`. When a song ends the next one starts. YouTube's rules say the player must stay visible while it plays, so it sits in the bottom-left corner (it hides when the music is muted). Players can pick an artist or search the list from the menu or the pause screen, skip with N, and mute with M or the speaker button. To add a song, put its YouTube video id in `src/songs.js`.

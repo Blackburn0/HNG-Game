@@ -174,6 +174,7 @@ function crash() {
   state = 'over';
   overAt = time;
   shake = 0.35;
+  updateHud(); // the frame that crashed returns before its own HUD update, so match the final score here
   const score = currentScore();
   const local = scores.submit(user, score); // this browser's best, for the HUD
   ui.best.textContent = local.best;

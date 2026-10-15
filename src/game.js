@@ -455,6 +455,9 @@ renderer.setAnimationLoop(() => {
 });
 
 if (platform.START_NG) showOverlay({ title: 'Lane Dash', message: 'Checking your start.ng sign-in…' });
-refreshUser(await platform.getCurrentUser());
+const signedIn = await platform.getCurrentUser();
+// Opened from start.ng with "Play as a guest" (?guest=1): don't ask again, go straight in.
+if (!signedIn && new URLSearchParams(location.search).has('guest')) playAsGuest();
+else refreshUser(signedIn);
 showIdle();
 platform.onUserChange(refreshUser);

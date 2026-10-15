@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lane Dash</title>
+  <link rel="stylesheet" href="src/styles.css">
+  <script type="importmap">
+    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.160.0/build/three.module.js" } }
+  </script>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <header class="hud">
+    <div class="user">
+      <span class="avatar" id="avatar">?</span>
+      <div>
+        <div class="name" id="username">Loading…</div>
+        <a class="link" href="startng.html" target="startng">Edit style on start.ng ↗</a>
+      </div>
+    </div>
+    <div class="stats">
+      <div><span class="label">Score</span><span id="score">0</span></div>
+      <div><span class="label">Coins</span><span id="coins">0</span></div>
+      <div><span class="label">Best</span><span id="best">0</span></div>
+    </div>
+  </header>
+
+  <div class="overlay" id="overlay">
+    <div class="panel">
+      <h1 id="title">Lane Dash</h1>
+      <p id="message"></p>
+      <button class="btn" id="action">Play</button>
+      <ol class="board" id="board"></ol>
+      <p class="hint">← → or A D to switch lanes · ↑, W or Space to jump · swipe or tap on mobile</p>
+    </div>
+  </div>
+
+  <script type="module" src="src/game.js"></script>
+</body>
+</html>
